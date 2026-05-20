@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Arduino: Compile Uno",
+      "type": "shell",
+      "command": "arduino-cli compile --fqbn arduino:avr:uno BatteryManager",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Arduino: Compile Nano",
+      "type": "shell",
+      "command": "arduino-cli compile --fqbn arduino:avr:nano BatteryManager",
+      "group": "build"
+    },
+    {
+      "label": "PlatformIO: Build (uno)",
+      "type": "shell",
+      "command": "pio run -e uno",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "PlatformIO: Upload",
+      "type": "shell",
+      "command": "pio run -e uno --target upload",
+      "group": "build"
+    },
+    {
+      "label": "PlatformIO: Monitor",
+      "type": "shell",
+      "command": "pio device monitor",
+      "group": "test"
+    },
+    {
+      "label": "Clean build artifacts",
+      "type": "shell",
+      "command": "rm -rf .pio .arduino .build",
+      "group": "build"
+    }
+  ]
+}

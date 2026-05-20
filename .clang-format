@@ -1,0 +1,15 @@
+---
+Language:	Cpp
+BasedOnStyle:	LLVM
+ColumnLimit:	120
+IndentWidth:    4
+ContinuationIndentWidth: 2
+UseTab: false
+BreakBeforeBraces: Linux
+AllowShortIfStatementsOnASingleLine: false
+IndentCaseLabels: false
+AlignAfterOpenBracket: false
+AlignTrailingComments: true
+InsertNewlineAtEOF: true
+...
+
