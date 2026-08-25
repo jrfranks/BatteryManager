@@ -22,8 +22,8 @@ jobs:
       matrix:
         fqbn:
           - arduino:avr:uno
-          - arduino:avr:pro5v16m   # Pro Mini 5V 16 MHz (very common for low-power)
-
+          - arduino:avr:pro:cpu=16MHzatmega328
+          
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
