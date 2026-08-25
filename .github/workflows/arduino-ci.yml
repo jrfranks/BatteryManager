@@ -29,9 +29,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Arduino CLI
-        uses: arduino/setup-arduino-cli@v1
+        uses: arduino/setup-arduino-cli@v2
         with:
-          version: "latest"
+          version: "1.5.1"
 
       - name: Install AVR core
         run: |
