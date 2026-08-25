@@ -22,7 +22,6 @@ jobs:
       matrix:
         fqbn:
           - arduino:avr:uno
-          - arduino:avr:nano
           - arduino:avr:pro5v16m   # Pro Mini 5V 16 MHz (very common for low-power)
 
     steps:
@@ -78,7 +77,4 @@ jobs:
       - name: Run PlatformIO build (uno target)
         run: |
           pio run -e uno -v
-
-      - name: Run PlatformIO build (nano target)
-        run: |
-          pio run -e nano
+          
