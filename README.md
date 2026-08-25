@@ -8,7 +8,7 @@ A production-quality firmware for safely charging lead-acid, LiFePO4, and Li-ion
 ![Platform](https://img.shields.io/badge/platform-AVR%20(Arduino)-blue)
 ![RAM](https://img.shields.io/badge/RAM-~426%20bytes-brightgreen)
 ![Flash](https://img.shields.io/badge/Flash-~11.2%20kB-brightgreen)
-![Build](https://github.com/jrfranks/BatteryCharger/actions/workflows/arduino-ci.yml/badge.svg)
+![Build](https://github.com/jrfranks/BatteryManager/actions/workflows/arduino-ci.yml/badge.svg)
 
 ---
 
