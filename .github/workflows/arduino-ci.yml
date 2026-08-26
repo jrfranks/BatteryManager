@@ -1,10 +1,8 @@
 # =============================================================================
 # GitHub Actions — Continuous Integration for BatteryManager
 # =============================================================================
-# Compiles the Arduino sketch on every push and PR for the most common boards.
-# Uses the official arduino-cli setup action for reliability and caching.
-#
-# This fulfills the "add CI with arduino-cli" suggestion from the project analysis.
+# Compiles the Arduino sketch on every push and PR for the most common boards,
+# runs host-native Unity tests, and builds each battery-profile Uno variant.
 # =============================================================================
 
 name: Arduino CI
@@ -23,7 +21,7 @@ jobs:
         fqbn:
           - arduino:avr:uno
           - arduino:avr:pro:cpu=16MHzatmega328
-          
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,7 +44,6 @@ jobs:
         run: |
           arduino-cli compile \
             --fqbn ${{ matrix.fqbn }} \
-            --libraries "$GITHUB_WORKSPACE" \
             --build-path /tmp/arduino-build \
             BatteryManager
 
@@ -58,7 +55,6 @@ jobs:
           path: /tmp/arduino-build
           retention-days: 7
 
-  # Optional: also verify with PlatformIO when PIO is configured
   platformio:
     runs-on: ubuntu-latest
     steps:
@@ -77,4 +73,31 @@ jobs:
       - name: Run PlatformIO build (uno target)
         run: |
           pio run -e uno -v
-          
+
+      - name: Profile compile matrix (Uno)
+        run: |
+          pio run -e uno_lifepo4 -e uno_liion
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Host Unity tests (lead-acid default)
+        run: pio test -e native
+
+      - name: Host Unity tests (LiFePO4)
+        run: pio test -e native_lifepo4
+
+      - name: Host Unity tests (Li-ion)
+        run: pio test -e native_liion

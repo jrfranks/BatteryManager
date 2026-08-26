@@ -44,7 +44,7 @@ These constraints drove every major decision.
 
 ### 1. Build Systems (Dual Support)
 
-- **Primary for beginners**: Classic Arduino sketch in `BatteryManager/` (one `.ino` + `Config.h`). Zero friction — just open the folder.
+- **Primary for beginners**: Classic Arduino sketch in `BatteryManager/` (`BatteryManager.ino` + `Config.h` + header-only `src/core/`). Open that folder in the Arduino IDE.
 - **Professional path**: `platformio.ini` at repository root. Provides dependency management, multiple board targets, better tooling, and CI.
 
 Both paths compile exactly the same sources. This satisfies the original analysis recommendation for PlatformIO while preserving accessibility.
@@ -77,7 +77,7 @@ On a resource-constrained 8-bit MCU, a full PID or MPC is overkill and risky (nu
 We use:
 - Mode-specific regulation (constant-current in BULK, constant-voltage in ABSORPTION/FLOAT).
 - Proportional term for responsiveness.
-- Small integral term **only during current regulation**, with hard anti-windup clamps (`constrain(..., -30, 30)`).
+- Small integral term **only during current regulation**, with hard anti-windup clamps (`clampFloat(..., -30, 30)`).
 - Explicit slew-rate limiter on PWM output (`PWM_SLEW_LIMIT`).
 
 This combination is stable, prevents excessive overshoot or oscillation, and fits in a few dozen lines of readable code. Tuning is done via three `constexpr` values in `Config.h`.
@@ -227,10 +227,10 @@ This gives good durability for the data that matters while keeping write rate lo
 ### 8. Modularity (Pragmatic)
 
 - `Config.h` owns **every** tunable (pins, profiles, limits, EEPROM layout, gains).
-- Core logic lives in one well-commented `ChargerController` class inside the `.ino`.
-- Helper functions are clearly separated by comment blocks.
+- Charge algorithms live in header-only `BatteryManager/src/core/` (`ChargerController`, FSM, control law, safety, telemetry).
+- `BatteryManager.ino` owns the AVR HAL (`analogRead`, Timer1, EEPROM, sleep) and `setup()`/`loop()`.
 
-A full multi-file split (`Sensors.cpp`, etc.) was considered and rejected for v1 to keep the Arduino IDE experience trivial (one folder, two files). The code is intentionally readable top-to-bottom. Future evolution may introduce more files once PlatformIO is the primary path.
+Arduino IDE 1.5+ compiles `src/` automatically, so users still open the `BatteryManager/` folder. Native Unity tests include the same headers.
 
 ### 9. Robustness Features Implemented
 
@@ -244,7 +244,11 @@ A full multi-file split (`Sensors.cpp`, etc.) was considered and rejected for v1
 - Graceful handling of sensor faults (temperature guard returns obviously invalid value → safety trip).
 - 32-bit promotion of `gWakeCount` and `floatHours` to eliminate 16-bit overflow in long-term timers.
 
-**Note on Temperature Compensation**: Profile constants (`TEMP_COMP_mV_PER_C`) and temperature safety exist. Full dynamic adjustment of target voltages based on temperature is **not yet implemented** in the regulation paths (it is planned as a low-risk future addition).
+**Note on Temperature Compensation**: Absorption and float targets are compensated every control cycle:
+
+`V_comp = V_base + (TEMP_COMP_mV_PER_C / 1000.0f) * (T - 25.0f)`
+
+with a negative `TEMP_COMP_mV_PER_C` (hotter → lower charge voltage). This path is covered by the native Unity suite.
 
 ### 10. Documentation & Onboarding
 
@@ -272,7 +276,7 @@ We chose the simplest hardware platform and pushed the software (and silicon pow
 3. ✅ Richer JSON telemetry + optional SSD1306 OLED support.
 
 **Remaining**:
-4. PlatformIO-native unit tests for the pure state machine / control logic.
+4. ✅ PlatformIO-native unit tests for the pure state machine / control logic.
 5. Optional ESP32 port for Wi-Fi/BLE when the power budget allows.
 6. GitHub Releases with pre-compiled `.hex` for popular boards.
 7. Further power wins (custom sleep routine, lower clock speeds, etc.).
@@ -287,9 +291,11 @@ This section is specifically written for someone who will maintain or extend thi
 
 | File                  | Purpose                                      | Where to Start |
 |-----------------------|----------------------------------------------|----------------|
-| `BatteryManager/BatteryManager.ino` | Main firmware + `ChargerController` class   | `setup()`, `loop()`, `ChargerController::runCycle()` |
+| `BatteryManager/BatteryManager.ino` | HAL + Arduino `setup()`/`loop()` | Pin init, ADC/PWM/sleep, serial plumbing |
+| `BatteryManager/src/core/charger_controller.h` | Charge FSM, safety, control, coulomb | `ChargerController::runCycle()` |
+| `BatteryManager/src/core/` | CRC, sensors, temp-comp, control law, telemetry | One header per domain |
 | `BatteryManager/Config.h` | **Single source of truth** for all tuning   | Start here for any hardware or chemistry change |
-| `platformio.ini`      | Professional builds and multiple targets    | Add new board environments here |
+| `platformio.ini`      | AVR builds and native unit tests    | `pio test -e native` |
 
 ### Common Maintenance Tasks
 
@@ -304,11 +310,10 @@ This section is specifically written for someone who will maintain or extend thi
 - Changing this affects `WAKES_PER_MINUTE`, `absorptionMinutes`, `floatHours`, and the mAh integrator.
 - Update all dependent constants in `Config.h` and `updateTimers()`.
 
-**Adding temperature compensation**
-- The constants `TEMP_COMP_mV_PER_C` already exist per profile.
-- In `applyControlOutputs()` (or a new helper), adjust `targetVoltage` based on `filteredT`.
-- Example formula: `targetV -= TEMP_COMP_mV_PER_C * (25.0f - filteredT) / 1000.0f;`
-- Add this after safety checks but before the P+I calculation.
+**Temperature compensation**
+- Implemented in `src/core/temp_comp.h` and applied every `runCycle()` to absorption and float targets.
+- Formula: `V_comp = V_base + (TEMP_COMP_mV_PER_C / 1000.0f) * (T - 25.0f)`, then clamped to `[MIN_OPERATING_VOLTAGE, MAX_CHARGE_VOLTAGE]`.
+- Do not add a second compensation term in `applyControlOutputs()`.
 
 **Enabling persistent Serial for debugging**
 - Define `#define SERIAL_DEBUG_ALWAYS` at the top of `BatteryManager.ino` (or pass via build flags in PlatformIO).

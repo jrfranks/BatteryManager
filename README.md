@@ -4,10 +4,10 @@
 
 A production-quality firmware for safely charging lead-acid, LiFePO4, and Li-ion battery packs using a simple Arduino (Uno/Nano/Pro Mini) + low-power techniques. Designed for solar, UPS, and bench applications where reliability and minimal quiescent current matter.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](BatteryManager/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-AVR%20(Arduino)-blue)
-![RAM](https://img.shields.io/badge/RAM-~426%20bytes-brightgreen)
-![Flash](https://img.shields.io/badge/Flash-~11.2%20kB-brightgreen)
+![RAM](https://img.shields.io/badge/RAM-~504%20bytes-brightgreen)
+![Flash](https://img.shields.io/badge/Flash-~16.6%20kB-brightgreen)
 ![Build](https://github.com/jrfranks/BatteryManager/actions/workflows/arduino-ci.yml/badge.svg)
 
 ---
@@ -32,13 +32,15 @@ A production-quality firmware for safely charging lead-acid, LiFePO4, and Li-ion
 ## Repository Layout
 
 ```
+LICENSE                         # MIT license (canonical)
 BatteryManager/                 # Arduino sketch (open this folder in Arduino IDE)
-├── BatteryManager.ino
+├── BatteryManager.ino          # HAL + setup()/loop()
 ├── Config.h
+├── src/core/                   # Host-testable charge algorithms (header-only)
 └── README.md                   # Sketch-specific notes
-
+test/                           # Native Unity suite (PlatformIO)
 DESIGN.md                       # Full design notes, architecture decisions, and theoretical justifications (power, control, peripherals, etc.)
-platformio.ini                  # Professional build (pio run -e uno)
+platformio.ini                  # AVR builds + native unit-test environments
 .github/workflows/arduino-ci.yml
 .gitignore                      # Enhanced for Arduino + PlatformIO
 ```
@@ -67,6 +69,24 @@ pio device monitor
 ```
 
 The `platformio.ini` is configured to build the exact same sources as the Arduino sketch.
+
+---
+
+## Testing
+
+Host-native Unity tests exercise the safety-critical algorithms without hardware:
+
+```bash
+pio test -e native            # default lead-acid profile
+pio test -e native_lifepo4
+pio test -e native_liion
+```
+
+Covered on the host: CRC-8 / EEPROM validation, ADC scaling and NTC math, IIR and cal offsets, temperature compensation, P+limited-I control law, coulomb counting, safety limits and debounce, charge FSM, EEPROM wear throttle, LED patterns, serial command parser, CSV/JSON telemetry, and HAL-mocked `runCycle()` integration.
+
+Still hardware-only (compile-checked, not executed on the host): AVR ADC burst / prescaler, Timer1 PWM, `LowPower.powerDown`, watchdog, OLED I2C, unused-pin pull-ups, and real sensor/power-stage behavior.
+
+See [test/README.md](test/README.md) for how to add a case.
 
 ---
 

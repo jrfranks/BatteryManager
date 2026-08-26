@@ -4,8 +4,9 @@ This folder contains the complete, ready-to-use Arduino sketch for the BatteryMa
 
 ## Contents
 
-- `BatteryManager.ino` — Main firmware (setup/loop + full `ChargerController` implementation)
+- `BatteryManager.ino` — HAL, Arduino `setup()`/`loop()`, AVR peripherals (ADC, Timer1, sleep, WDT, OLED, serial plumbing)
 - `Config.h` — **The only file you normally need to edit** (pins, battery profile, calibration constants, safety limits)
+- `src/core/` — Header-only charging algorithms (CRC, sensors, temp-comp, control law, coulomb, safety, FSM, EEPROM, LED, serial parse, telemetry, controller). Arduino IDE 1.5+ compiles `src/` automatically; you still only edit `Config.h`.
 
 ## Quick Usage
 
