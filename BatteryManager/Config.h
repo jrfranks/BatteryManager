@@ -1,41 +1,15 @@
 /**
- * @file    Config.h
- * @brief   Central configuration and tuning surface for BatteryManager.
+ * @file Config.h
+ * Tuning surface: pins, one chemistry profile, and sensor scales.
  *
- * @details This is the **primary file** a maintainer or end-user will edit.
- *          It contains every tunable parameter in one place:
- *            - Hardware pin mapping
- *            - Battery chemistry profiles (with temperature coefficients)
- *            - Sensor calibration and scaling
- *            - Safety limits, timing, and control gains
- *            - Feature flags (OLED, debug serial, etc.)
- *            - EEPROM data layout and versioning
+ * Voltage and current limits below are generic starting points. They are not
+ * a characterized power stage. VOLTAGE_DIVIDER_RATIO and CURRENT_SCALE must
+ * be measured on the board in front of you.
  *
- * @warning  **Edit this file with extreme care.** Incorrect calibration
- *           (especially VOLTAGE_DIVIDER_RATIO and CURRENT_SCALE) can cause
- *           overcharging, fire, or battery damage. Always verify values with
- *           a calibrated multimeter.
- *
- * @section How to Use
- *   1. Uncomment **exactly one** `BATTERY_PROFILE_*` define.
- *   2. Measure your hardware and update the calibration constants below.
- *   3. Adjust safety limits and timing if your setup differs significantly.
- *   4. Enable optional features (`ENABLE_OLED`, etc.) as needed.
- *
- * @section Adding a New Profile
- *   To add a new battery chemistry:
- *     1. Add a new `#elif defined(BATTERY_PROFILE_XXX)` block.
- *     2. Define all required constants (voltages, currents, temps, timers).
- *     3. Update the profile selection comment at the top of this section.
- *
- * @version 1.1
- * @date    2026
- * @author  BatteryManager contributors
- * @license MIT
- *
- * @see DESIGN.md for the reasoning behind power strategy, control law,
- *      temperature compensation, and coulomb counting design.
+ * Lithium profiles assume an external BMS and a charger IC. This firmware
+ * cannot protect a cell by itself.
  */
+
 
 #pragma once
 
@@ -150,7 +124,8 @@ constexpr uint16_t ABSORPTION_MAX_MINUTES = 240; // 4 hours max absorption
 constexpr uint16_t FLOAT_RECHARGE_HOURS = 72;    // force bulk check every 3 days
 
 #elif defined(BATTERY_PROFILE_LIFEPO4_4S)
-constexpr const char *PROFILE_NAME = "LiFePO4 4S (12.8V nominal)";
+// Generic 4S voltages. Not a named cell. Requires an external BMS.
+constexpr const char *PROFILE_NAME = "LiFePO4 4S (generic; external BMS required)";
 constexpr float NOMINAL_VOLTAGE = 12.8f;
 constexpr float ABSORPTION_VOLTAGE = 14.40f; // 3.6 V/cell
 constexpr float FLOAT_VOLTAGE = 13.60f;      // 3.4 V/cell typical
@@ -173,7 +148,10 @@ constexpr uint16_t ABSORPTION_MAX_MINUTES = 120;
 constexpr uint16_t FLOAT_RECHARGE_HOURS = 48;
 
 #elif defined(BATTERY_PROFILE_LIION_4S)
-constexpr const char *PROFILE_NAME = "Li-ion 4S (14.4-14.8V)";
+// Generic 4.20 V/cell absorption and a 4.00 V/cell float. Not a named cell.
+// Do not compile this profile onto a pack that lacks a BMS and a charger IC.
+// Do not float a lithium cell unless the cell maker says to.
+constexpr const char *PROFILE_NAME = "Li-ion 4S (generic; external BMS required)";
 constexpr float NOMINAL_VOLTAGE = 14.4f;
 constexpr float ABSORPTION_VOLTAGE = 16.80f; // 4.20 V/cell – use with great caution!
 constexpr float FLOAT_VOLTAGE = 16.00f;      // many BMS prefer no float or very low
@@ -200,10 +178,10 @@ constexpr uint16_t FLOAT_RECHARGE_HOURS = 24;
 #endif
 
 // =============================================================================
-// SENSOR CALIBRATION (hardware dependent – MEASURE AND TUNE THESE)
+// SENSOR CALIBRATION (measure these; the defaults are examples)
 // =============================================================================
-// These values must be measured on your actual hardware. Never rely on the
-// default numbers for production use.
+// 5.70 and 0.0264 match a textbook 47k/10k divider and an ACS712-05B.
+// They are not measurements from a board built for this repo.
 //
 // Recommended calibration procedure:
 //   1. Voltage: Apply known stable voltages (e.g. 12.00V and 14.00V) and adjust

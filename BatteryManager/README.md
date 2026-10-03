@@ -1,37 +1,30 @@
 # BatteryManager Arduino Sketch
 
-This folder contains the complete, ready-to-use Arduino sketch for the BatteryManager low-power battery charge controller.
+AVR HAL and the charge-supervisor sketch. Open this folder in the Arduino IDE.
 
 ## Contents
 
-- `BatteryManager.ino` — HAL, Arduino `setup()`/`loop()`, AVR peripherals (ADC, Timer1, sleep, WDT, OLED, serial plumbing)
-- `Config.h` — **The only file you normally need to edit** (pins, battery profile, calibration constants, safety limits)
-- `src/core/` — Header-only charging algorithms (CRC, sensors, temp-comp, control law, coulomb, safety, FSM, EEPROM, LED, serial parse, telemetry, controller). Arduino IDE 1.5+ compiles `src/` automatically; you still only edit `Config.h`.
+- `BatteryManager.ino` — ADC, Timer1 PWM, sleep, watchdog, EEPROM, serial, optional OLED
+- `Config.h` — the file you edit: pins, one chemistry profile, sensor scales you must measure
+- `src/core/` — header-only charge algorithms. Arduino IDE 1.5+ compiles `src/` on its own
 
 ## Quick Usage
 
-1. Open this entire folder in the Arduino IDE (or use `arduino-cli` from the parent directory).
-2. Install the **Low-Power** library (by rocketscream) via Library Manager.
-3. Adjust your hardware settings in `Config.h` (especially `VOLTAGE_DIVIDER_RATIO`, current sensor scale, and chosen `#define BATTERY_PROFILE_*`).
-4. Upload to an Arduino Uno, Nano, or Pro Mini.
-5. Open the Serial Monitor at **115200 baud** and type `help`.
+1. Open this folder in the Arduino IDE, or compile it from the repo root with `arduino-cli`.
+2. Install the **Low-Power** library (rocketscream).
+3. Measure the divider and the current sensor. Replace `VOLTAGE_DIVIDER_RATIO` and `CURRENT_SCALE` in `Config.h`. The checked-in numbers are examples.
+4. Keep `BATTERY_PROFILE_LEAD_ACID_12V` unless the pack already has a BMS and a charger IC.
+5. Upload to an Uno, Nano, or Pro Mini. The boot banner is **115200** baud. The USART is then turned off.
 
-## Full Documentation
+Pin names are in `Config.h`. This repo has no wiring diagram. Architecture and the power tradeoffs are in [DESIGN.md](../DESIGN.md). The root [README](../README.md) says what the host tests cover and what they do not.
 
-All wiring diagrams, state machine explanation, calibration procedure, serial command reference, safety notes, and troubleshooting live in the **[top-level README.md](../README.md)** of the repository.
-
-For the full theoretical background and justifications behind the ultra-low-power techniques (PRR/DIDR0, BOD_OFF, conditional peripherals, fast ADC, reduced EEPROM writes, etc.), control strategy, and implementation choices, see **[DESIGN.md](../DESIGN.md)** (the consolidated architecture + reasoning document).
-
-## PlatformIO Users
-
-The project root contains a `platformio.ini` that builds this sketch directly:
+## PlatformIO
 
 ```bash
 pio run -e uno
+pio test -e native
 ```
 
 ## Version
 
-Current version: v1.1 (temperature compensation, coulomb counting with load sensor, JSON telemetry, optional OLED)
-
----
+v1.1 — temperature compensation, coulomb counting, JSON telemetry, optional OLED. Sleep current is not a measured field of this version.

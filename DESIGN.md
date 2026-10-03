@@ -104,7 +104,7 @@ Time (ms):   0                ~5-10               2000
              +----------------+-------------------+------------------------>
 ```
 
-Typical measured active window on a 16 MHz ATmega328P: **5–12 ms** depending on state (longer in BULK when doing control calculations and possible EEPROM write).
+Typical budget for the active window on a 16 MHz ATmega328P: **5–12 ms** depending on state (longer in BULK when doing control calculations and a possible EEPROM write). This is a cycle budget, not a scope capture checked into the repo.
 
 Duty cycle ≈ 0.25–0.6 % → sleep current dominates average consumption.
 
@@ -151,13 +151,14 @@ sequenceDiagram
 ```text
 Power State
 HIGH (mA)  ┌──────────────────────┐
-           │   Active (~5-8 mA)   │
+           │ Active (not measured)│
            │  Sensors + Compute   │
            └──────────────────────┘
 MED        │  Brief transitions   │
-LOW (µA)   │                      │  ┌──────────────────────────────┐
-           │                      │  │   Deep Sleep (< 10-20 µA)    │
-           │                      │  │  PRR + DIDR0 + BOD_OFF + WDT │
+LOW        │                      │  ┌──────────────────────────────┐
+           │                      │  │ Deep sleep (MCU floor,       │
+           │                      │  │ not measured in this repo)   │
+           │                      │  │ PRR + DIDR0 + BOD_OFF + WDT  │
            └──────────────────────┴──┴──────────────────────────────┘
 Time (ms)   0          8                       2000
 ```
@@ -169,7 +170,7 @@ These diagrams (and the `prepareForDeepSleep` / fast-ADC / dynamic peripheral co
 ### 4. State Machine
 
 
-A clear finite state machine with explicit entry/exit actions and **safety overrides on every single cycle**:
+A finite state machine with explicit transitions and a software safety check on every cycle:
 
 ```
 INIT → IDLE ↔ PRECHARGE ↔ BULK → ABSORPTION → FLOAT
@@ -177,14 +178,14 @@ INIT → IDLE ↔ PRECHARGE ↔ BULK → ABSORPTION → FLOAT
                 └────────── any safety violation → FAULT (latched) → RECOVERY → IDLE
 ```
 
-All safety checks (`checkSafetyLimits`) run **before** any actuator (PWM or enable pin) is touched. This is the single most important robustness property.
+`checkSafetyLimits()` runs at the start of `runCycle()`, before `applyControlOutputs()`. A trip forces PWM to 0 and charge-enable low and returns. `FAULT` latches only after `FAULT_DEBOUNCE_CYCLES`. That is a software interlock. It is not a hardware kill path.
 
 ### 5. Power Management Strategy (Ultra-Low Power Design)
 
 This is the area where the most engineering effort was spent after the initial functional implementation.
 
 #### Theoretical Background
-The ATmega328P has multiple power domains. In `powerDown` mode the CPU and most clocks stop. Real measured sleep currents on a clean board can reach single-digit µA only when peripherals are aggressively disabled.
+The ATmega328P has multiple power domains. In `powerDown` mode the CPU and most clocks stop. Datasheets and other people's clean-board measurements put the MCU floor in the single-digit µA only when peripherals are off. This repository does not include a measurement of this firmware on a board.
 
 Key consumers during sleep:
 - BOD (~5–15 µA)
@@ -202,7 +203,7 @@ Key consumers during sleep:
 - **Fast ADC burst**: During the 16-sample measurement we temporarily switch the ADC prescaler to /16 (much faster conversions) and shorten settling delays, then restore the original speed. This reduces time spent awake at high current.
 - **Reduced EEPROM activity**: Immediate forced writes only on truly critical transitions (FAULT, entering BULK/ABSORPTION). Everything else rides the ~10-minute throttle. Each EEPROM write is expensive in both energy and cell wear.
 
-**Result**: Average current in IDLE/FLOAT is dominated by the regulator and any always-on sensor hardware rather than the MCU itself.
+**Result**: On a board whose regulator and sensors are actually off, average current in IDLE/FLOAT is dominated by whatever is still powered, not by the CPU. That split has not been measured for this tree.
 
 ### 6. Sensor & ADC Strategy
 
@@ -261,7 +262,7 @@ with a negative `TEMP_COMP_mV_PER_C` (hotter → lower charge voltage). This pat
 
 | Alternative                              | Why Rejected |
 |------------------------------------------|--------------|
-| Dedicated charger IC + Arduino as pure supervisor | Loses educational value and fine-grained control/logging that motivated the project. |
+| Dedicated charger IC, this firmware as supervisor only | Correct deployment for lithium. This repo instead implements the charger in software so the state machine and power path can be read. Do not ship the lithium profiles without that IC and a BMS. |
 | ESP32 or more powerful MCU               | Idle current is orders of magnitude higher — defeats the "does not discharge the battery" goal. |
 | Continuous high-frequency PWM loop       | Destroys average power; unnecessary for battery dynamics. |
 | Pure event-driven (comparator wake)      | Adds external hardware complexity for marginal gain on this use case. |
@@ -323,7 +324,7 @@ This section is specifically written for someone who will maintain or extend thi
 1. Power the board from a clean bench supply through a current meter (or use a uCurrent Gold / Otii).
 2. Put the board in IDLE state with a healthy battery voltage.
 3. Wait > 30 seconds for everything to settle.
-4. Expected: < 20–50 µA total system current on a clean Pro Mini (depending on regulator and sensor hardware).
+4. Target to check, not a result from this repo: < 20–50 µA total system current on a clean Pro Mini with the linear regulator and sensors actually off. Until you measure it, do not quote it.
 
 ### Important Gotchas for Maintainers
 
